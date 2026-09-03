@@ -1,0 +1,253 @@
+---
+title: "CO₂ Emissions and Economic Growth Analysis for EVNGENCO3 - Vietnam"
+author: "SID 55008605 - Tuan Phuc TRAN"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+---
+
+
+# Client Bio
+![](genco.jpg){fig-align="left" width="240"}
+
+**Client**:
+[EVNGENCO3](https://www.genco3.com/), a major Vietnamese power generation corporation. The company seeks to understand its CO₂ emission trends and the relationship between energy output and environmental impact. This insight supports EVNGENCO3’s transition strategy towards cleaner production and alignment with Vietnam’s national net-zero commitment by 2050.
+
+# Recommendation
+The analysis reveals that coal-fired generation produces the largest share of EVNGENCO3’s CO₂ emissions. It is recommended that the company accelerate investment in renewable energy projects, upgrade low-efficiency thermal units, and implement digital emission-tracking systems to support evidence-based reductions aligned with Vietnam’s 2050 net-zero target.
+
+
+# Evidence
+The dataset, sourced from [Our World in Data](https://ourworldindata.org/co2-data), provides annual records of CO₂ emissions and energy indicators for more than 200 countries from 1750 to 2023. For this analysis, the key variables included country, year, coal CO₂, oil CO₂, gas CO₂, total CO₂ emissions, and energy per capita. The focus of this study is Vietnam, representing the operational context of EVNGENCO3, a major power-generation company seeking to understand its emission trends and identify evidence-based strategies for transitioning toward cleaner energy sources.
+```{r}
+#| echo: true
+#| results: "hide"
+#| message: false
+#| warning: false
+library(ggplot2)
+library(tidyverse)
+library(scales)
+library(countrycode)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+```
+```{r}
+#| echo: true
+#| results: "hide"
+# Load dataset
+co2 <- read_csv("owid-co2-data.csv", show_col_types = FALSE)
+
+# Keep only necessary variables and remove aggregate OWID entries
+co2 <- co2 %>%
+  filter(!str_starts(iso_code, "OWID")) %>%
+  select(iso_code, country, year,
+         co2, co2_per_capita,
+         coal_co2, oil_co2, gas_co2,
+         energy_per_capita, gdp, population) %>%
+  filter(!is.na(co2), !is.na(population))
+
+# Add continent classification for regional comparison
+co2 = co2 %>%
+  mutate(continent = countrycode(iso_code, origin = "iso3c", destination = "continent"))
+
+# Identify the most recent year with available data
+latest_year = co2 %>%
+  summarise(latest = max(year, na.rm = TRUE)) %>%
+  pull(latest)
+
+# Subset data for the latest year (for global comparison)
+co2_latest = co2 %>% filter(year == latest_year)
+
+# Subset data for Vietnam – context for the client EVNGENCO3
+co2_vnm = co2 %>%
+  filter(iso_code == "VNM") %>%
+  arrange(year)
+```
+# CO2 Emissions per Capita Across Contionents 
+```{r}
+ggplot(co2_latest, aes(x = continent, y = co2_per_capita, fill = continent)) +
+  geom_boxplot(outlier.shape = 16, outlier.alpha = 0.4) +
+  geom_point(data = filter(co2_latest, iso_code == "VNM"),
+             aes(x = continent, y = co2_per_capita),
+             color = "red", size = 3, shape = 18) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "CO2 Emissions per Capita Across Continents",
+    x = "Continent",
+    y = "CO2 Emissions per Capita (tonnes/person)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_blank()
+  )
+```
+
+```{r}
+# Summarise median, mean, and max CO₂ per capita by continent
+co2_summary <- co2_latest %>%
+  group_by(continent) %>%
+  summarise(
+    Median_CO2 = round(median(co2_per_capita, na.rm = TRUE), 2),
+    Mean_CO2   = round(mean(co2_per_capita, na.rm = TRUE), 2),
+    Max_CO2    = round(max(co2_per_capita, na.rm = TRUE), 2)
+  ) %>%
+  arrange(desc(Median_CO2))
+
+# Create formatted table
+kable(co2_summary,
+      caption = "Summary of CO2 Emissions per Capita by Continent (Our World in Data, 2023)",
+      col.names = c("Continent", "Median CO₂ (t/person)", "Mean CO₂ (t/person)", "Max CO₂ (t/person)")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover")) %>%
+  row_spec(which(co2_summary$continent == "Asia"), bold = TRUE, color = "black", background = "#f2f2f2")
+```
+
+
+The box plot illustrates CO₂ emissions per capita across continents, revealing notable regional disparities in energy-related carbon intensity. Asia, where Vietnam and EVNGENCO3 operate, shows a wide spread of values due to varying levels of industrialisation and dependence on coal-based power. Vietnam’s position below the Asian median suggests that its current per-capita emissions are moderate; however, the upward trend indicates a growing reliance on fossil-fuel generation. This pattern aligns with global findings reported by the [International Energy Agency (2023)](https://www.iea.org/data-and-statistics), which emphasise that developed economies maintain per-capita emissions more than three times higher than developing regions. Such evidence underscores the risk that emerging economies may replicate high-emission trajectories if coal dependence persists. Therefore, EVNGENCO3 should proactively accelerate renewable-energy investment, modernise low-efficiency thermal units, and deploy digital emission-tracking technologies to achieve measurable, evidence-based reductions consistent with Vietnam’s 2050 net-zero target.
+
+# Vietnam’s CO₂ Emission Trend
+```{r}
+#| echo: true
+#| message: false
+#| warning: false
+# Scatter plot: CO2 emissions (total vs per capita) over time for Vietnam
+ggplot(co2_vnm, aes(x = year, y = co2, color = co2_per_capita)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_smooth(method = "loess", color = "darkred", se = FALSE, linewidth = 1) +
+  scale_color_gradient(low = "#91bfdb", high = "#fc8d59", name = "CO2 per Capita (t/person)") +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Vietnam’s Rising CO2 Emissions",
+    x = "Year",
+    y = "Total CO2 Emissions (million tonnes)",
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 12, color = "gray30"),
+    legend.position = "right"
+  )
+```
+The scatter plot highlights Vietnam’s sharp increase in CO₂ emissions since 2000, reflecting rapid economic growth and rising electricity demand driven by coal-based power generation. The acceleration in emissions underscores the energy sector’s pivotal role in achieving climate goals. For EVNGENCO3, this pattern reveals the urgent need to diversify its generation mix by scaling up renewable energy investments and improving plant efficiency. Transitioning to low-carbon technologies would allow continued growth while mitigating environmental risks. This aligns with the [World Bank (2024)](https://data.worldbank.org/indicator/EN.ATM.CO2E.KT?locations=VN), which reports that Vietnam’s carbon intensity has more than doubled over the past two decades, driven largely by fossil-fuel dependence.
+
+# Relationship between GDP and CO₂ Emissions
+```{r}
+#| echo: true
+#| message: false
+#| warning: false
+# Scatter plot showing relationship between GDP and CO₂ emissions for Vietnam
+ggplot(co2_vnm, aes(x = gdp / 1e9, y = co2, color = year)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred", linewidth = 1) +
+  scale_color_gradient(low = "#91bfdb", high = "#fc8d59", name = "Year") +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title ="Relationship between GDP and CO2 Emissions – Vietnam",
+    x = "GDP (Billion USD)",
+    y = "Total CO2 Emissions (Million Tonnes)",
+    caption = "Data source: Our World in Data (2023)."
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "gray30"),
+    legend.position = "right"
+  )
+```
+The scatter plot reveals a strong positive correlation between Vietnam’s GDP and total CO₂ emissions, suggesting that rapid economic growth has been accompanied by increasing fossil-fuel consumption. As GDP rises, emissions climb proportionally, indicating that industrial expansion continues to rely heavily on carbon-intensive power generation. This trend underscores the strategic need for EVNGENCO3 to diversify its energy portfolio by investing in renewables and enhancing plant efficiency to decouple economic progress from emissions. The observed pattern aligns with findings from the [World Bank (2024)](https://data.worldbank.org/indicator/EN.ATM.CO2E.KT?locations=VN), which show Vietnam’s carbon output doubling since 2000 due to coal dependence.
+
+# Limitations
+
+## Limitations: Missing Data Overview
+
+```{r}
+#| echo: true
+#| message: false
+#| warning: false
+# Calculate missing values by variable
+missing_summary <- co2 %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Missing_Count")
+
+# Plot missing data
+ggplot(missing_summary, aes(x = reorder(Variable, -Missing_Count), y = Missing_Count, fill = Missing_Count)) +
+  geom_col() +
+  scale_fill_gradient(low = "#91bfdb", high = "#fc8d59") +
+  labs(
+    title = "Missing Data by Variable in OWID CO2 Dataset",
+    x = "Variable",
+    y = "Number of Missing Values",
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold")
+  )
+```
+The bar chart highlights missing data across key variables in the OWID CO₂ dataset, particularly for GDP and energy indicators. These data gaps, more frequent in earlier years and developing countries, limit cross-regional comparison accuracy and trend consistency. For EVNGENCO3, this means the analysis may underrepresent Vietnam’s early energy transitions. Future research should integrate national datasets and adopt statistical imputation to reduce bias. The need for improved global emission reporting systems remains critical, aligning with recommendations by the [World Bank (2024)](https://data.worldbank.org/indicator/EN.ATM.CO2E.KT?locations=VN) that emphasise enhancing data transparency to support evidence-based climate strategies
+
+## Limitations and Future Directions
+
+-   A potential bias arises from data incompleteness, as developing countries like Vietnam have less consistent reporting compared to high-income economies. This could distort regional comparisons and underestimate true CO₂ trends relevant to EVNGENCO3.
+-   The linear analysis assumes a consistent GDP–emission relationship, yet heteroscedasticity may exist due to structural shifts in Vietnam’s energy sector. This limits model reliability over time.
+-   Some variables, such as industrial output or energy mix, were unavailable in the dataset, constraining a more nuanced understanding of emission drivers.
+-   Future analyses could integrate national data from Vietnam’s Ministry of Industry and Trade and apply time-series or non-linear models to better capture emission dynamics and forecast pathways toward the 2050 net-zero goal
+
+# Ethics Statement
+This analysis upholds the Shared Value of Professional Integrity and the Ethical Principle of Transparency by using publicly available CO₂ datasets, accurately reporting results, and avoiding data manipulation, ensuring findings for EVNGENCO3 are objective, reproducible, and ethically sound in supporting evidence-based environmental decisions.
+
+# Acknowledgements
+
+## AI usage statement
+When asked, “How can I add the EVNGENCO3 logo into my Quarto report?” ChatGPT explained several methods to embed images using Markdown and code chunks, providing example syntax applicable to my report.
+
+-   Reference: OpenAI. (2025). ChatGPT (GPT-5 version) [Large language model]. https://chat.openai.com/chat
+
+When asked, “How can I check and fix errors in my ggplot R code?” Cursor assisted by identifying syntax issues and suggesting corrections that successfully generated the CO₂–GDP scatter plot and regression visualisation.
+
+-   Reference: Cursor. (2025). AI pair programming tool. https://www.cursor.com
+
+When asked, “Please suggest suitable graphs or tables for the limitations section,” Gemini proposed visual options such as a missing-data bar chart and guided the interpretation focusing on data completeness and policy implications for EVN GENCO 3.
+
+-   Reference: Google. (2025). Gemini (Pro version) [Large language model]. https://gemini.google.com
+
+## References
+International Energy Agency. (2023). CO₂ emissions by region and sector – Data and analysis. IEA. https://www.iea.org/data-and-statistics
+
+World Bank. (2024). CO₂ emissions (kt) – Vietnam. The World Bank Group. https://data.worldbank.org/indicator/EN.ATM.CO2E.KT?locations=VN
+
+# Appendix
+## Hypothesis Testing – Relationship between GDP and CO₂ Emissions
+**Hypotheses (HATPC format):**
+
+-   H₀ (Null Hypothesis): There is no significant correlation between Vietnam’s GDP and CO₂ emissions.
+-   H₁ (Alternative Hypothesis): There is a significant positive correlation between Vietnam’s GDP and CO₂ emissions.
+
+**Assumptions:**
+
+-  Variables (GDP and CO₂) are continuous and approximately linear.
+-  Each observation (year) is independent.
+-  No extreme outliers significantly influence correlation results.
+
+**Test:** A Pearson correlation test was conducted to evaluate the relationship between GDP and CO₂ emissions in Vietnam using OWID data.
+```{r}
+#| echo: true
+#| results: "hide"
+#| message: false
+#| warning: false
+# Hypothesis Test
+cor_test <- cor.test(co2_vnm$gdp, co2_vnm$co2, method = "pearson")
+cor_test
+```
+**P-value and Result**
+
+-  r ≈ 0.97, p < 0.001, indicating a strong, statistically significant positive correlation.
+
+**Conclusion**
+
+The test supports the alternative hypothesis: CO₂ emissions rise sharply with economic expansion.
+This confirms that Vietnam’s industrial and energy growth is closely tied to carbon output — reinforcing the recommendation for EVNGENCO3 to invest in renewable energy and efficiency upgrades to decouple economic growth from emissions intensity.
