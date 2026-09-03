@@ -5,9 +5,11 @@ An analysis of Vietnam's CO₂ emissions in regional context, prepared for
 plans a shift toward cleaner production ahead of the country's 2050 net-zero
 target.
 
-**Author:** Tuan Phuc Tran (Lucas Tran)
-**Course:** DATA1001, University of Sydney
-**Tools:** R (tidyverse, ggplot2, countrycode, knitr, kableExtra)
+- **Author:** Tuan Phuc Tran (Lucas Tran)
+- **Course:** DATA1001, University of Sydney
+- **Tools:** R (tidyverse, ggplot2, countrycode, knitr, kableExtra)
+
+📄 **[Read the full report](Project.html)** — charts and analysis, no R needed.
 
 ---
 
@@ -24,9 +26,8 @@ annual records for more than 200 countries from 1750 to 2023.
 Variables used: `country`, `year`, `co2`, `co2_per_capita`, `coal_co2`,
 `oil_co2`, `gas_co2`, `energy_per_capita`, `gdp`, `population`.
 
-The dataset is not included in this repository. Download `owid-co2-data.csv`
-from the [OWID repository](https://github.com/owid/co2-data) and place it beside
-the `.qmd` file before rendering.
+`owid-co2-data.csv` is included in this repository so the report renders without
+any extra setup. `owid-co2-codebook.csv` documents what each variable means.
 
 ## Method
 
@@ -73,8 +74,10 @@ applying time-series models, would be the next step.
 ## Files
 
 ```
-├── analysis.qmd     # Quarto source: code, charts and written analysis
-├── analysis.html    # Rendered report
+├── Project.qmd            # Quarto source: code, charts and written analysis
+├── Project.html           # Rendered report — start here
+├── owid-co2-data.csv      # Source data
+├── owid-co2-codebook.csv  # Variable definitions
 └── README.md
 ```
 
@@ -87,10 +90,10 @@ install.packages(c("tidyverse", "ggplot2", "scales",
                    "countrycode", "knitr", "kableExtra"))
 ```
 
-Place `owid-co2-data.csv` in the same folder, then render:
+Then render from the repository folder:
 
 ```bash
-quarto render analysis.qmd
+quarto render Project.qmd
 ```
 
 ## References
